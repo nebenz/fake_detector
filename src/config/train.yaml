@@ -1,0 +1,176 @@
+defaults:
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+
+#  =========== changes variable ===============
+
+
+
+
+check_val_every_n_epoch : 1
+# cuda_visible_devices:  '0'
+
+#  =========== data-sets ===============
+
+
+ckpt_monitor : 'val_loss'
+dataset_name: synthetic  
+
+
+data_set_path : /data/external
+
+data_dir : 
+  # train: ${data_set_path}/ASVspoof2019_LA_train/flac  
+  # val  : ${data_set_path}/ASVspoof2019_LA_val/flac
+  # test : ${data_set_path}/ASVspoof2019_LA_test/flac
+  train: ${data_set_path}/ASVspoof2019_LA_test/flac   #train
+  val  : ${data_set_path}/ASVspoof2019_LA_test/flac
+  test : ${data_set_path}/ASVspoof2019_LA_test/flac
+
+
+# data_label_train: ${data_set_path}/ASVspoof2019.LA.cm.train.trn.txt
+# data_label_eval:  ${data_set_path}/ASVspoof2019.LA.cm.eval.trl.txt
+# data_label_test:  ${data_set_path}/ASVspoof2019.LA.cm.dev.trl.txt
+# data_label_train: /workspace/inputs/asaf/room_detector/data/external/ASVspoof2019.LA.cm.dev.trl.txt
+# data_label_eval:  /workspace/inputs/asaf/room_detector/data/external/ASVspoof2019.LA.cm.dev.trl.txt
+# data_label_test:  /workspace/inputs/asaf/room_detector/data/external/ASVspoof2019.LA.cm.dev.trl.txt
+data_label_train:  ${data_set_path}/ASVspoof2019.LA.cm.dev.trl.txt
+data_label_eval:   ${data_set_path}/ASVspoof2019.LA.cm.dev.trl.txt
+data_label_test:   ${data_set_path}/ASVspoof2019.LA.cm.dev.trl.txt
+
+
+train_ratio: 0.85
+val_ratio: 0.15
+
+
+
+# =============== DEBUG ===============
+
+debug_flag: False
+debug: False
+
+# ========================================= test args ==============================================================
+
+
+# ================ DATA ======================
+
+sample_rate : 16000
+signal_length: 4 # 4 seconds
+
+
+# ================ STFT ======================
+
+create_partial_spec: False
+freq_min: 15
+freq_max: 50
+
+window_size: 512
+hop_length: 256
+n_fft: 512
+
+# spec length of 4 sec is (4sec*8000 (samples/sec))/256 (hop length) = 125
+spec_length: 125
+
+# =========== Model HP ==============
+
+train_batch_size : 32 # 64
+val_batch_size : 32 #64
+test_batch_size :  16
+pin_memory : False
+data_loader_shuffle : True
+
+
+
+# ======= Optimizer ===========
+
+optimizer : Adam
+learning_rate : 1e-4
+
+# ======== Model  & Criterion ==========
+
+model_type: dnn   
+model_name: encoder_classification # simple_classification #resNet_BinaryClassifier #simple_classification #  # #UNet_R_with_transformer_mask_log # UNet_R_with_transformer_map_log
+criterion : BCELoss # CrossEntropyLoss #L1Loss
+weights_loss: [4,0.6]
+# criterion_paramter:  reduction  #None
+criterion_paramter_value: none  #mean
+# infer_from_ckpt: /workspace/inputs/asaf/room_detector/models/model_encoder_classification_loss_BCELoss_batch_32_optimizer_Adam_new/lightning_logs/version_0/checkpoints/epoch=17-val_loss=0.44.ckpt
+infer_from_ckpt:  /lightning_logs/version_0/checkpoints/best=0.44.ckpt
+#
+# /lightning_logs/version_0/checkpoints/best=0.44.ckpt
+
+
+# ========= ModelCheckPoints =========
+
+patience : 25
+save_top_k: 5
+save_last: True
+resume_from_checkpoint : None
+precision : 16
+progress_bar_refresh_rate : 5
+log_gpu_memory : False
+epsilon : 1e-8
+num_workers : 10
+
+
+ 
+
+# spec augment 
+spec_augment : True 
+spec_aug_time_jump : 32
+N_max : 30 
+N_min : 10 
+K_max : 30 
+K_min : 10 
+overlap: 128 
+
+
+# ================ CUDA ======================
+gpus : -1 # -1
+cuda_visible_devices:  '0,1,2,3,5,6,7,8'
+# ========================================= Hydra config ==============================================================
+
+model_def_name : model_${model_name}_loss_${criterion}_batch_${train_batch_size}_optimizer_${optimizer}_new
+# models_dir :  /workspace/inputs/asaf/room_detector/models/${model_def_name}/ 
+models_dir :  /models/${model_def_name}/ 
+
+
+hydra:
+  run:
+    dir:   ./models/${model_type}/${hydra.job.override_dirname}/${hydra.job.name}/
+    # dir:   /workspace/inputs/asaf/room_detector/models/${hydra.job.override_dirname}/${hydra.job.name}/
+
+  job:
+    name: ${model_def_name}
+    config:
+      # configuration for the ${hydra.job.override_dirname} runtime variable
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        # Remove all paths, as the / in them would mess up things
+        # Remove params that would not impact the training itself
+        # Remove all slurm and submit params.
+        exclude_keys: [
+          'hydra.job_logging.handles.file.filename',
+          'dset.train', 'dset.valid', 'dset.test', 'dset.mix_json', 'dset.mix_dir',
+          'num_prints', 'continue_from',
+          'device', 'num_workers', 'print_freq', 'restart', 'verbose',
+          'log', 'ddp', 'ddp_backend', 'rendezvous_file', 'rank', 'world_size', 'cuda_visible_devices']
+  job_logging:
+    handlers:
+      file:
+        class: logging.FileHandler
+        mode: w
+        formatter: colorlog
+        filename: trainer.log
+      console:
+        class: logging.StreamHandler
+        formatter: colorlog
+        stream: ext://sys.stderr
+
+  hydra_logging:
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: colorlog
+        stream: ext://sys.stderr
