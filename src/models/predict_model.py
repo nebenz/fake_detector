@@ -30,7 +30,8 @@ def main(args):
     model.to(device)
     model.eval()
     # args.eval_mode = True
-    score = pred_model(args,model)
+    eer, accuracy = pred_model(args,model)
+    print("Accuracy of test is:", accuracy , ". EER is:", eer)
     # args.eval_mode = False
 
 if __name__ == '__main__':
