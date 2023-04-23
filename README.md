@@ -1,8 +1,8 @@
 # fake detector
 
-attached is a project that classify between real and fake speech
+Attached is a project that classify between real and fake speech.
 
-all parameters can be modified by train.yaml config file
+All parameters can be modified by train.yaml config file
 
 there are few available architectures, see the config file
 
